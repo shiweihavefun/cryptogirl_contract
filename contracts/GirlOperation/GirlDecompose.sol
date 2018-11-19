@@ -97,4 +97,52 @@ contract GirlDecompose is AccessControl {
     debris.transfer(CFO, _amount);
   }
 
+  function computeCurveValue(uint _tokenId) public view returns (uint _startValue, uint _currentValue, uint _endValue, uint _birth) {
+    uint _birthTime = girlOps.getGirlBirthTime(_tokenId);
+    uint _gene = girlOps.getGirlGene(_tokenId);
+    uint _rarity = genesFactory.getRarity(_gene);
+    uint _starLevel = girlOps.getGirlStarLevel(_tokenId);
+
+    uint ret = 10;
+    if (_rarity == 3){
+      ret = 100;
+    } else if (_rarity == 2){
+      ret = 50;
+    } else if(_rarity == 1){
+      ret = 20;
+    }
+    if (_starLevel>10){
+      _starLevel = 10;
+    }
+
+    if(_birthTime < newCalStartTime) {
+      _startValue = computeValue(ret, _starLevel, baseOrigin);
+      _currentValue = _startValue;
+      _endValue = _startValue;
+    }else{
+      _startValue = computeValue(ret, _starLevel, base);
+
+      uint _secondPassed = block.timestamp.sub(_birthTime);
+      uint _currentBase;
+      if(_secondPassed > duration) {
+        _currentBase = cap;
+      } else {
+        uint _totalPriceChange = cap.sub(base);
+        uint _currentBaseChange = _totalPriceChange.mul(_secondPassed).div(duration);
+        _currentBase = base.add(_currentBaseChange);
+      }
+
+      _currentValue = computeValue(ret, _starLevel, _currentBase);
+      _endValue = computeValue(ret, _starLevel, cap);
+    }
+    _birth = _birthTime;
+    return (_startValue, _currentValue, _endValue, _birth);
+  }
+
+  function computeValue(uint _ret, uint _starLevel, uint _coefficient) internal pure returns(uint){
+    _ret = _ret.mul(uint256(3 ** uint256(_starLevel -1))).mul(_coefficient);
+    _ret = _ret.div(1 ether).mul(1 ether);
+    return _ret;
+  }
+
 }
